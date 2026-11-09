@@ -1,0 +1,86 @@
+{
+  "metadata": {
+    "title": "Local 1CBS: polymer cartoon, ligand ball-and-stick and spacefill, polymer surface",
+    "version": "1"
+  },
+  "root": {
+    "kind": "root",
+    "children": [
+      {
+        "kind": "download",
+        "params": { "url": "/examples/1cbs_full.bcif" },
+        "children": [
+          {
+            "kind": "parse",
+            "params": { "format": "bcif" },
+            "children": [
+              {
+                "kind": "structure",
+                "params": { "type": "model" },
+                "children": [
+                  {
+                    "kind": "component",
+                    "params": { "selector": "polymer" },
+                    "ref": "polymer",
+                    "children": [
+                      {
+                        "kind": "representation",
+                        "params": { "type": "cartoon" },
+                        "ref": "polymer_cartoon",
+                        "children": [
+                          { "kind": "color", "params": { "color": "#4f9b62" } }
+                        ]
+                      },
+                      {
+                        "kind": "representation",
+                        "params": { "type": "surface", "surface_type": "gaussian" },
+                        "ref": "polymer_surface",
+                        "children": [
+                          { "kind": "color", "params": { "color": "#83b8d8" } },
+                          { "kind": "opacity", "params": { "opacity": 0.22 } }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "component",
+                    "params": { "selector": "ligand" },
+                    "ref": "ligand",
+                    "children": [
+                      {
+                        "kind": "representation",
+                        "params": { "type": "ball_and_stick", "size_factor": 1.4 },
+                        "ref": "ligand_ball_and_stick",
+                        "children": [
+                          { "kind": "color", "params": { "color": "#d43d9b" } }
+                        ]
+                      },
+                      {
+                        "kind": "representation",
+                        "params": { "type": "spacefill", "size_factor": 0.45 },
+                        "ref": "ligand_spacefill",
+                        "children": [
+                          { "kind": "color", "params": { "color": "#f0c44f" } },
+                          { "kind": "opacity", "params": { "opacity": 0.7 } }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      { "kind": "canvas", "params": { "background_color": "#10151d" } },
+      {
+        "kind": "camera",
+        "params": {
+          "target": [17, 21, 27],
+          "position": [41, 34, 69],
+          "up": [-0.129, 0.966, -0.224]
+        }
+      }
+    ]
+  }
+}

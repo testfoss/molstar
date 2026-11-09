@@ -213,3 +213,15 @@ Funding sources include but are not limited to:
 * [PDBe, EMBL-EBI](https://pdbe.org)
 * [CEITEC](https://www.ceitec.eu/)
 * [EntosAI](https://www.entos.ai)
+
+## Testfoss demo
+
+The `testfoss-demo` branch adds an isolated source-build and browser scenario at upstream pin `a4e9cc79415213263090ee47bf380d2a33e0118e`; upstream source, examples, and lockfiles remain unchanged. See [the demo guide](testfoss/README.md) and [agent/reproduction notes](AGENTS.md).
+
+```sh
+./testfoss/run.sh package
+(cd testfoss && npm ci && npx playwright install chromium)
+./testfoss/run.sh browser
+```
+
+The package gate runs the full build, lint, and serial Jest suite (1,522 passing tests in the recorded lab run). The browser scenario uses `lmwebtest playwright` with the source-built stock viewer: local 1CBS cartoon/surface/ligand representations, ligand hide/show, and local PDB/DCD trajectory step/play/stop controls. Only the portable `testfoss/local-1cbs.mvsj` fixture is copied; molecular structure and trajectory data use the existing local examples. Generated builds, dependencies, and screenshots are not committed.

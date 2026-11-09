@@ -1,0 +1,90 @@
+let base_url = env("TESTFOSS_BASE_URL", "http://127.0.0.1:8111");
+mkdir("artifacts");
+
+program = _lmcode_ cli="lmwebtest playwright";
+let launch_options = "{\"args\":[\"--enable-unsafe-swiftshader\"]}";
+if (pw.env("TESTFOSS_CHROME_EXECUTABLE") != "") {
+  launch_options = "{\"executablePath\":\"" + pw.env("TESTFOSS_CHROME_EXECUTABLE") + "\",\"args\":[\"--enable-unsafe-swiftshader\"]}";
+}
+let b = pw.launch("chromium", launch_options);
+let p = b.new_page("{\"viewport\":{\"width\":1440,\"height\":1000}}");
+p.set_default_timeout(90000);
+p.goto(pw.env("TESTFOSS_BASE_URL") + "/build/viewer/index.html?mvs-url=%2Ftestfoss%2Flocal-1cbs.mvsj&mvs-format=mvsj");
+p.wait_for_function("document.body.innerText.includes('Polymer') && document.body.innerText.includes('Ligand') && document.body.innerText.includes('Gaussian Surface')");
+$return.canvas_count = p.locator("canvas").count();
+$return.polymer_components = p.get_by_text("Polymer", false).count();
+$return.ligand_components = p.get_by_text("Ligand", false).count();
+$return.resources = p.evaluate("performance.getEntriesByType('resource').map((entry) => entry.name)");
+p.get_by_title("Hide component", true).nth(1).click();
+p.get_by_title("Show component", true).wait_for();
+$return.ligand_show_controls = p.get_by_title("Show component", true).count();
+p.get_by_title("Show component", true).first().click();
+p.wait_for_function("document.querySelectorAll('[title=\"Hide component\"]').length === 2");
+$return.restored_hide_controls = p.get_by_title("Hide component", true).count();
+p.screenshot("artifacts/molstar-1cbs.png", true);
+$return.page_errors = p.page_errors();
+$return.console_log = p.console_log();
+p.close();
+
+let t = b.new_page("{\"viewport\":{\"width\":1440,\"height\":1000}}");
+t.set_default_timeout(90000);
+t.goto(pw.env("TESTFOSS_BASE_URL") + "/build/viewer/index.html");
+t.wait_for_function("globalThis.molstar && molstar.Viewer.instances.length === 1");
+t.evaluate("(async () => { await molstar.Viewer.instances[0].loadTrajectory({ model: { kind: 'model-url', url: '/examples/trajectory/protein.pdb', format: 'pdb' }, coordinates: { kind: 'coordinates-url', url: '/examples/trajectory/protein.dcd', format: 'dcd', isBinary: true }, preset: 'default' }); return true; })()");
+t.locator(".msp-traj-controls").expect("toHaveText", "[\"Model 1 / 10\"]");
+$return.trajectory_initial = t.locator(".msp-traj-controls").inner_text();
+t.get_by_title("Next Model", true).click();
+t.locator(".msp-traj-controls").expect("toHaveText", "[\"Model 2 / 10\"]");
+$return.trajectory_next = t.locator(".msp-traj-controls").inner_text();
+t.get_by_title("Select Animation", true).click();
+t.get_by_role("button", "{\"name\":\"Start\",\"exact\":true}").click();
+t.wait_for_timeout(1200);
+$return.animation_playing = t.evaluate("molstar.Viewer.instances[0].plugin.managers.animation.state.animationState") == "\"playing\"";
+t.get_by_title("Stop", true).click();
+t.wait_for_timeout(300);
+$return.animation_stopped = t.evaluate("molstar.Viewer.instances[0].plugin.managers.animation.state.animationState") == "\"stopped\"";
+$return.trajectory_resources = t.evaluate("performance.getEntriesByType('resource').map((entry) => entry.name)");
+t.screenshot("artifacts/molstar-trajectory.png", true);
+$return.trajectory_page_errors = t.page_errors();
+$return.trajectory_console_log = t.console_log();
+b.close();
+end _lmcode_
+
+let res = run_lmcode(program, {command: ["lmwebtest", "playwright", "--lmcode", "$DSLFILE"]});
+let stats = {pass: 0, fail: 0};
+fn check(condition, name, detail) {
+  if (condition) {
+    stats["pass"] = stats.get("pass", 0) + 1;
+    println(f"[PASS] {name}: {detail}");
+  } else {
+    stats["fail"] = stats.get("fail", 0) + 1;
+    println(f"[FAIL] {name}: {detail}");
+  }
+}
+check(res.get("ok", false), "lmwebtest run", "viewer and trajectory completed");
+if (!res.get("ok", false)) {
+  println(json_stringify(res));
+  exit(1);
+}
+let r = res.get("result", {});
+check(r.get("canvas_count", 0) > 0, "1CBS rendered", "viewer canvas present");
+check(r.get("polymer_components", 0) > 0, "polymer", "component present");
+check(r.get("ligand_components", 0) > 0, "ligand", "component present");
+check(contains(r.get("resources", ""), "/testfoss/local-1cbs.mvsj"), "local MVS request", "testfoss/local-1cbs.mvsj");
+check(contains(r.get("resources", ""), "/examples/1cbs_full.bcif"), "local structure request", "examples/1cbs_full.bcif");
+check(r.get("ligand_show_controls", 0) == 1, "ligand hidden", "Show component control");
+check(r.get("restored_hide_controls", 0) == 2, "ligand restored", "two Hide component controls");
+check(len(json_parse(r.get("page_errors", "[]"))) == 0, "viewer page errors", r.get("page_errors", "[]"));
+check(!contains(r.get("console_log", ""), "\"type\":\"error\""), "viewer console errors", "none");
+check(r.get("trajectory_initial", "") == "Model 1 / 10", "trajectory initial", r.get("trajectory_initial", ""));
+check(r.get("trajectory_next", "") == "Model 2 / 10", "trajectory next", r.get("trajectory_next", ""));
+check(r.get("animation_playing", false), "trajectory playing", "animation state playing");
+check(r.get("animation_stopped", false), "trajectory stopped", "animation state stopped");
+check(contains(r.get("trajectory_resources", ""), "/examples/trajectory/protein.pdb"), "local PDB request", "protein.pdb");
+check(contains(r.get("trajectory_resources", ""), "/examples/trajectory/protein.dcd"), "local DCD request", "protein.dcd");
+check(len(json_parse(r.get("trajectory_page_errors", "[]"))) == 0, "trajectory page errors", r.get("trajectory_page_errors", "[]"));
+check(!contains(r.get("trajectory_console_log", ""), "\"type\":\"error\""), "trajectory console errors", "none");
+println(f"Molstar browser integration: {stats.get('pass', 0)} passed, {stats.get('fail', 0)} failed");
+if (stats.get("fail", 0) > 0) {
+  exit(1);
+}
